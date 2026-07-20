@@ -1,5 +1,6 @@
-flask
+apify-client
+google-api-python-client
 anthropic
-python-dotenv
 requests
-gunicorn
+python-dotenv
+flask
