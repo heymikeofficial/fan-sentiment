@@ -1,0 +1,21 @@
+# Secrets. Never commit these.
+.env
+.env.*
+*.pem
+.streamlit/secrets.toml
+
+# Local databases and caches (regenerated at runtime)
+*.db
+.cadence_cache/
+.cache/
+__pycache__/
+*.pyc
+
+# Local server logs and generated previews
+*.log
+cadence_preview.html
+merch_preview.html
+compare_preview.html
+
+# macOS
+.DS_Store
