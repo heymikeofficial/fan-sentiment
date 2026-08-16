@@ -527,7 +527,7 @@ def compute_cadence(releases, include_compilations=False):
         trend = ("Accelerating" if trend_pct <= -15 else
                  "Decelerating" if trend_pct >= 15 else "Holding steady")
 
-    # Scarcity is an ALBUM behaviour. Measuring it on every release makes almost
+    # Scarcity is an ALBUM behavior. Measuring it on every release makes almost
     # everyone look prolific, because nearly all artists drop singles regularly.
     album_days = sorted({d.date() for d, r in pool
                          if r["inferred_type"] == "album" and not is_extension(r["name"])})
@@ -931,7 +931,7 @@ def _plural(n, word):
 
 
 def window_releases(releases, months=24):
-    """Releases from the last N months, for the recent-behaviour view."""
+    """Releases from the last N months, for the recent-behavior view."""
     cutoff = datetime.utcnow() - timedelta(days=months * 30.4)
     out = []
     for r in releases:
@@ -980,7 +980,7 @@ def build_takeaways(cadence_stats, ramp, extensions, labels, dropday,
     who = artist_name or "This artist"
     recent_scope = (scope == "recent")
     # Phrase every population reference against the set actually measured.
-    span_txt = "in the last 24 months" if recent_scope else "across the catalogue"
+    span_txt = "in the last 24 months" if recent_scope else "across the catalog"
     pop_txt = ("of everything released in this period" if recent_scope
                else f"of everything {who} has put out")
 
@@ -1173,7 +1173,7 @@ def build_takeaways(cadence_stats, ramp, extensions, labels, dropday,
             f'{c["longest_drought_to"]}.',
             f'{c["longest_drought_days"]}-day silence', 52, "when"))
 
-    # 13. Working the catalogue.
+    # 13. Working the catalog.
     x = extensions or {}
     if x.get("avg_days_working_a_record"):
         out.append(_tk(
@@ -1223,7 +1223,7 @@ def build_takeaways(cadence_stats, ramp, extensions, labels, dropday,
 def project_next_12_months(cadence_stats, ramp):
     """
     Extrapolates this artist's own median gap forward. This is a projection of
-    their established pattern, NOT a prediction of what they will actually do, labelled as such everywhere it surfaces.
+    their established pattern, NOT a prediction of what they will actually do, labeled as such everywhere it surfaces.
     """
     if not cadence_stats.get("enough_data"):
         return {"windows": [], "note": "Not enough dated history to project a pattern."}

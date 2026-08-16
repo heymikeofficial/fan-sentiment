@@ -193,7 +193,7 @@ button:disabled{opacity:.8;cursor:not-allowed}
     <label>Compare against another store <span class="opt">- optional</span></label>
     <input id="store2" type="url" autocomplete="off" spellcheck="false"
            placeholder="https://anotherstore.com">
-    <button id="go" type="submit">Analyse release strategy</button>
+    <button id="go" type="submit">Analyze release strategy</button>
     <div class="load" id="load">
       <div class="lt" id="lt">Reading the discography…</div>
       <div class="bar"><i id="bar"></i></div>

@@ -124,7 +124,7 @@ def build_timeline_svg(releases, cadence_stats=None):
 
     # ── album stems + labels, with collision avoidance ───────────────────────
     lanes = [0, 1, 2]
-    # Wider catalogues need more horizontal separation before a label is safe.
+    # Wider catalogs need more horizontal separation before a label is safe.
     min_spacing = 118 if len(albums) <= 12 else 150
     last_x = {l: -999 for l in lanes}
     lane_y = {0: BASE_Y - 118, 1: BASE_Y - 84, 2: BASE_Y - 50}
@@ -173,7 +173,7 @@ def build_timeline_svg(releases, cadence_stats=None):
 # ── Report page ──────────────────────────────────────────────────────────────
 
 TAG_LABEL = {"how often": "How often", "when": "When", "rollout": "Album rollout",
-             "catalog": "Catalogue", "business": "Business"}
+             "catalog": "Catalog", "business": "Business"}
 
 
 def _stat(value, label):
@@ -282,7 +282,7 @@ def build_report(artist, releases, cadence_stats, rhythm, ramp, extensions,
         f'<span class="cd-ybar-n">{n}</span></div>'
         for d, n in (dd.get("by_day") or {}).items())
 
-    # ── Catalogue tab ──
+    # ── Catalog tab ──
     x = extensions or {}
     ext_rows = ""
     for l in x.get("linked", []):
@@ -432,7 +432,7 @@ td{{padding:9px 6px;border-bottom:1px solid #f2f2f7;vertical-align:top}}
   <button class="tab-btn active" onclick="showTab('take',this)">Takeaways</button>
   <button class="tab-btn" onclick="showTab('time',this)">Timeline</button>
   <button class="tab-btn" onclick="showTab('cad',this)">Cadence</button>
-  <button class="tab-btn" onclick="showTab('cat',this)">Catalogue</button>
+  <button class="tab-btn" onclick="showTab('cat',this)">Catalog</button>
   <button class="tab-btn" onclick="showTab('biz',this)">Business</button>
   {merch_btn}
 </div>
@@ -572,7 +572,7 @@ def build_recent_list(releases, months=24):
 def build_career_years(releases):
     """
     Year by year, with cover art. Albums and EPs get tiles because those are the
-    events people remember; singles are summarised as a count so a prolific year
+    events people remember; singles are summarized as a count so a prolific year
     doesn't drown the page in thumbnails.
     """
     years = {}

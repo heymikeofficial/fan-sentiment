@@ -111,7 +111,7 @@ def fetch_products(store_url):
     return origin, products
 
 
-# ── Categorisation ───────────────────────────────────────────────────────────
+# ── Categorization ───────────────────────────────────────────────────────────
 
 # product_type is free text and wildly inconsistent across stores
 # ("TEES" / "T-Shirt" / "Long-sleeve" / "All Over Prints"), so match keywords, # but check product_type FIRST, since when a store does label an item it is more
@@ -565,14 +565,14 @@ def _positioning_read(s):
                  "very few reasons to come back between drops")
     elif s["product_count"] <= 40:
         depth = ("a focused range, wide enough to give fans a choice without carrying "
-                 "the overhead of a full retail catalogue")
+                 "the overhead of a full retail catalog")
     else:
-        depth = ("a deep catalogue that behaves like a standalone retail business, not "
+        depth = ("a deep catalog that behaves like a standalone retail business, not "
                  "a merch table")
     if spread >= 8:
         ladder = (f'The ${s["entry_price"]:,.0f} entry point and ${s["top_price"]:,.0f} '
                   "ceiling mean there is something here for a casual fan and something "
-                  "for a collector, which is how a store maximises revenue per visitor.")
+                  "for a collector, which is how a store maximizes revenue per visitor.")
     elif spread >= 3:
         ladder = (f'Prices run ${s["entry_price"]:,.0f} to ${s["top_price"]:,.0f}, a normal '
                   "spread that covers most fan budgets.")
@@ -597,8 +597,8 @@ MERCH_GLOSSARY = """
           once, not once per size, so a tee in five sizes counts as one item.</span></div>
         <div><b>Top price</b><span>The most expensive item. The distance between entry and top
           shows whether there is a ladder for fans to climb.</span></div>
-        <div><b>Catalogue depth</b><span>How many products are on sale. Depth drives repeat
-          visits; a small catalogue relies on drops instead.</span></div>
+        <div><b>Catalog depth</b><span>How many products are on sale. Depth drives repeat
+          visits; a small catalog relies on drops instead.</span></div>
         <div><b>Category mix</b><span>What they actually sell, grouped from the store's own
           product labels. Heavy apparel versus physical music tells you whether the store is a
           merch business or a music business.</span></div>
