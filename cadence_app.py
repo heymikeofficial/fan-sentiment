@@ -13,6 +13,7 @@ reports so a repeat lookup costs nothing at all.
 import os
 import html
 import hashlib
+import secrets
 import sqlite3
 from datetime import datetime, date, timedelta
 
@@ -25,7 +26,15 @@ import cadence
 import cadence_render
 from merch import analyze_store, compare_stores, render_merch_tab, MerchError
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cadence_usage.db")
+_HERE = os.path.dirname(os.path.abspath(__file__))
+# Set DATA_DIR to a Railway volume mount (e.g. /data) so saved reports survive
+# redeploys. Without it, every deploy would break links already shared publicly.
+DATA_DIR = os.environ.get("DATA_DIR", _HERE)
+try:
+    os.makedirs(DATA_DIR, exist_ok=True)
+except OSError:
+    DATA_DIR = _HERE
+DB_PATH = os.path.join(DATA_DIR, "cadence_usage.db")
 CACHE_TTL_HOURS = 24
 GLOBAL_DAILY_LIMIT = 40      # Spotify quota is the real ceiling, not server load
 IP_DAILY_LIMIT = 3
@@ -42,6 +51,11 @@ def init_db():
             artist TEXT, artist_id TEXT, store TEXT)""")
         c.execute("""CREATE TABLE IF NOT EXISTS report_cache (
             cache_key TEXT PRIMARY KEY, html TEXT, created_at TEXT)""")
+        # Permanently saved reports. These never expire: a link posted publicly
+        # has to keep working, and serving one costs no Spotify quota at all.
+        c.execute("""CREATE TABLE IF NOT EXISTS shared (
+            id TEXT PRIMARY KEY, artist TEXT, artist_id TEXT, store TEXT,
+            html TEXT, created_at TEXT, views INTEGER DEFAULT 0)""")
 
 
 def cache_key(artist_id, store, compare_store):
@@ -68,6 +82,35 @@ def set_cached(key, body):
     with sqlite3.connect(DB_PATH, timeout=15) as c:
         c.execute("INSERT OR REPLACE INTO report_cache VALUES (?,?,?)",
                   (key, body, datetime.utcnow().isoformat()))
+
+
+def new_share_id():
+    """Short, unguessable. Anyone with the link can view, but nobody can walk
+    the list by trying ids."""
+    return secrets.token_urlsafe(8)
+
+
+def save_shared(sid, artist, artist_id, store, body):
+    with sqlite3.connect(DB_PATH, timeout=15) as c:
+        c.execute("INSERT OR REPLACE INTO shared (id,artist,artist_id,store,html,created_at,views)"
+                  " VALUES (?,?,?,?,?,?,COALESCE((SELECT views FROM shared WHERE id=?),0))",
+                  (sid, artist, artist_id, store or "", body,
+                   datetime.utcnow().isoformat(), sid))
+
+
+def get_shared(sid):
+    with sqlite3.connect(DB_PATH, timeout=15) as c:
+        row = c.execute("SELECT html FROM shared WHERE id=?", (sid,)).fetchone()
+        if row:
+            c.execute("UPDATE shared SET views = views + 1 WHERE id=?", (sid,))
+    return row[0] if row else None
+
+
+def list_shared(limit=200):
+    with sqlite3.connect(DB_PATH, timeout=15) as c:
+        return c.execute(
+            "SELECT id,artist,store,created_at,views FROM shared "
+            "ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
 
 
 def log_run(ip, artist, artist_id, store):
@@ -97,7 +140,7 @@ init_db()
 
 # ── Pipeline ─────────────────────────────────────────────────────────────────
 
-def build_full_report(artist_url, store_url="", compare_store_url=""):
+def build_full_report(artist_url, store_url="", compare_store_url="", share_id=None):
     data = cadence.fetch_discography(artist_url)
     artist, releases = data["artist"], data["releases"]
 
@@ -128,7 +171,7 @@ def build_full_report(artist_url, store_url="", compare_store_url=""):
 
     body = cadence_render.build_report(artist, releases, c, rhythm, ramp, ext,
                                        labels, dropday, takeaways, projection, merch_html,
-                                       recent_takeaways=recent)
+                                       recent_takeaways=recent, share_id=share_id)
     return body, artist
 
 
@@ -269,8 +312,9 @@ def analyze():
     if not ok:
         return {"error": why}, 429
 
+    share_id = new_share_id()
     try:
-        body, artist = build_full_report(artist_url, store, store2)
+        body, artist = build_full_report(artist_url, store, store2, share_id=share_id)
     except cadence.SpotifyQuotaError as e:
         # Quota exhaustion is expected under load, not a fault. Answer instantly
         # so a queue of waiting users drains rather than piling up.
@@ -283,8 +327,77 @@ def analyze():
         return {"error": f"Analysis failed: {e}"}, 500
 
     set_cached(key, body)
+    save_shared(share_id, artist.get("name", ""), artist_id, store, body)
     log_run(ip, artist.get("name", ""), artist_id, store)
     return Response(body, content_type="text/html; charset=utf-8")
+
+
+@app.route("/r/<share_id>")
+def shared_report(share_id):
+    """
+    Public. No rate limit and no Spotify call, because the report is already
+    rendered. This is what makes a link safe to post to any size audience.
+    """
+    body = get_shared(share_id)
+    if not body:
+        return Response(_not_found_page(), status=404,
+                        content_type="text/html; charset=utf-8")
+    return Response(body, content_type="text/html; charset=utf-8")
+
+
+def _not_found_page():
+    return """<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Report not found</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>body{font-family:'Inter',sans-serif;background:#f9f9fb;color:#1c1c1e;display:flex;
+align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px}
+.c{background:#fff;border-radius:20px;box-shadow:0 2px 20px rgba(0,0,0,.08);padding:44px;
+max-width:460px;text-align:center}
+h1{font-family:'Anton',sans-serif;text-transform:uppercase;font-size:26px;font-weight:400;
+margin:0 0 12px}p{color:#6c6c70;line-height:1.6;margin:0 0 20px}
+a{display:inline-block;background:#2f76dd;color:#fff;text-decoration:none;padding:13px 26px;
+border-radius:11px;font-family:'Anton',sans-serif;text-transform:uppercase;font-size:14px}
+</style></head><body><div class="c"><h1>Report not found</h1>
+<p>This link is not valid, or the report it pointed to is no longer available.</p>
+<a href="/">Run a new report</a></div></body></html>"""
+
+
+@app.route("/mine")
+def mine():
+    rows = list_shared()
+    items = "".join(
+        f'<tr><td><a href="/r/{html.escape(i)}" target="_blank">{html.escape(a or "Untitled")}</a></td>'
+        f'<td class="m">{html.escape((s or "").replace("https://",""))}</td>'
+        f'<td class="m">{html.escape(t[:10])}</td><td class="m">{v}</td>'
+        f'<td><input readonly onclick="this.select()" value="/r/{html.escape(i)}"></td></tr>'
+        for i, a, s, t, v in rows)
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>My Cadence reports</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>*{{box-sizing:border-box;margin:0;padding:0}}
+body{{font-family:'Inter',sans-serif;background:#f9f9fb;color:#1c1c1e;padding:40px 24px;
+display:flex;flex-direction:column;min-height:100vh}}
+.c{{max-width:1000px;margin:0 auto;width:100%;flex:1}}
+h1{{font-family:'Anton',sans-serif;text-transform:uppercase;font-size:30px;font-weight:400}}
+.s{{color:#8e8e93;font-size:14px;margin:6px 0 24px;line-height:1.6}}
+table{{width:100%;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden;
+box-shadow:0 2px 12px rgba(0,0,0,.06)}}
+th{{font-family:'Anton',sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:.06em;
+color:#8e8e93;padding:13px 16px;text-align:left;border-bottom:1px solid #f2f2f7}}
+td{{padding:11px 16px;border-bottom:1px solid #f7f7f9;font-size:14px;vertical-align:middle}}
+td a{{color:#1c1c1e;text-decoration:none;font-weight:600}} td a:hover{{color:#2f76dd}}
+.m{{color:#8e8e93;font-size:12.5px}}
+td input{{width:100%;min-width:150px;border:1px solid #e5e5ea;border-radius:7px;padding:6px 9px;
+font-size:12px;font-family:inherit;background:#f9f9fb;color:#2f76dd}}
+.hm{{text-align:right;max-width:1000px;margin:24px auto 0;width:100%;font-family:'Anton',sans-serif;
+text-transform:uppercase;font-size:33px;color:#2f76dd}}
+</style></head><body><div class="c">
+<h1>My Reports</h1>
+<p class="s">Every report you have generated, with its shareable link. These links are public,
+never expire, and cost no Spotify quota to view, so you can post them anywhere.</p>
+<table><thead><tr><th>Artist</th><th>Store</th><th>Created</th><th>Views</th><th>Link</th></tr></thead>
+<tbody>{items or '<tr><td colspan="5" style="text-align:center;color:#8e8e93;padding:34px">No reports yet</td></tr>'}</tbody></table>
+</div><div class="hm">Powered by Hey Mike</div></body></html>"""
 
 
 @app.route("/stats")

@@ -189,9 +189,37 @@ def _takeaway_html(t, i):
             f'<span class="cd-chip cd-chip-b">{_esc(t["stat"])}</span></div></div>')
 
 
+def _share_bar(share_id):
+    if not share_id:
+        return ""
+    return f'''
+<div class="cd-share">
+  <div class="cd-share-t">Shareable link</div>
+  <div class="cd-share-r">
+    <input id="shareUrl" readonly value="" onclick="this.select()">
+    <button onclick="cdCopy()" id="copyBtn">Copy</button>
+  </div>
+  <div class="cd-share-n">Anyone with this link can open this report. It stays live and
+  costs nothing to view, so it is safe to post publicly or send to as many people as
+  you like.</div>
+</div>
+<script>
+  document.getElementById('shareUrl').value =
+    window.location.origin + '/r/{share_id}';
+  function cdCopy(){{
+    var f = document.getElementById('shareUrl');
+    f.select(); f.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(f.value).then(function(){{
+      var b = document.getElementById('copyBtn');
+      b.textContent = 'Copied'; setTimeout(function(){{ b.textContent = 'Copy'; }}, 1800);
+    }});
+  }}
+</script>'''
+
+
 def build_report(artist, releases, cadence_stats, rhythm, ramp, extensions,
                  labels, dropday, takeaways, projection, merch_html="",
-                 recent_takeaways=None):
+                 recent_takeaways=None, share_id=None):
     a = artist
     c, ry = cadence_stats, rhythm or {}
 
@@ -369,6 +397,18 @@ h1{{font-family:'Anton',sans-serif;text-transform:uppercase;letter-spacing:.02em
 .cd-chip{{display:inline-block;background:#f2f2f7;color:#6c6c70;font-size:11px;
           padding:3px 9px;border-radius:999px;margin-right:6px}}
 .cd-chip-b{{background:#e6eefc;color:{BLUE};font-weight:600}}
+.cd-share{{background:#e6eefc;border-radius:14px;padding:16px 18px;margin-bottom:16px}}
+.cd-share-t{{font-family:'Anton',sans-serif;text-transform:uppercase;letter-spacing:.06em;
+             font-size:11px;color:{BLUE};margin-bottom:8px}}
+.cd-share-r{{display:flex;gap:8px}}
+.cd-share-r input{{flex:1;min-width:0;height:40px;border-radius:9px;border:1px solid #c9dbf7;
+             padding:0 12px;font-size:13.5px;font-family:inherit;background:#fff;color:{INK}}}
+.cd-share-r button{{height:40px;padding:0 20px;border:none;border-radius:9px;background:{BLUE};
+             color:#fff;font-family:'Anton',sans-serif;text-transform:uppercase;
+             letter-spacing:.04em;font-size:13px;cursor:pointer;flex-shrink:0}}
+.cd-share-n{{font-size:12px;color:#3c3c43;line-height:1.5;margin-top:9px}}
+@media(max-width:700px){{.cd-share-r{{flex-direction:column}}
+  .cd-share-r button{{width:100%}}}}
 .cd-hero-read{{font-size:15.5px;line-height:1.6;color:#3c3c43;margin-bottom:14px;max-width:760px}}
 .cd-read{{font-size:15.5px;line-height:1.6;color:#3c3c43;margin-bottom:14px}}
 .cd-muted{{color:{MUTED};font-size:14px}}
@@ -427,6 +467,7 @@ td{{padding:9px 6px;border-bottom:1px solid #f2f2f7;vertical-align:top}}
 
 <p class="cd-hero-read">{hero_read}</p>
 <div class="cd-stats">{hero}</div>
+{_share_bar(share_id)}
 
 <div class="tab-bar">
   <button class="tab-btn active" onclick="showTab('take',this)">Takeaways</button>
