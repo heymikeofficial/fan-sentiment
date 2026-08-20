@@ -271,12 +271,12 @@ def analyze():
 
     try:
         body, artist = build_full_report(artist_url, store, store2)
+    except cadence.SpotifyQuotaError as e:
+        # Quota exhaustion is expected under load, not a fault. Answer instantly
+        # so a queue of waiting users drains rather than piling up.
+        return {"error": str(e)}, 429
     except cadence.SpotifyError as e:
-        msg = str(e)
-        if "429" in msg or "Rate limited" in msg:
-            msg = ("Spotify's daily data limit for this tool has been reached. "
-                   "It resets within 24 hours.")
-        return {"error": msg}, 502
+        return {"error": str(e)}, 502
     except ValueError as e:
         return {"error": str(e)}, 400
     except Exception as e:

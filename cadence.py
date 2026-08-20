@@ -41,6 +41,8 @@ MARKET = "US"                 # pinned for reproducibility; surfaced in UI
 #   * a combined include_groups query is flaky, returned 153 once and 0 the
 #     next call. Querying each group separately is both accurate and stable.
 PAGE_LIMIT = 10
+# Never sleep longer than this on a 429; see api_get.
+MAX_RETRY_WAIT_SECONDS = 30
 
 # CORE SCOPE. `appears_on` (guest verses on other artists' records) is excluded
 # deliberately: it is typically the majority of a catalog and therefore most of
@@ -97,6 +99,11 @@ class SpotifyError(Exception):
     pass
 
 
+class SpotifyQuotaError(SpotifyError):
+    """Daily quota exhausted. Distinct so callers can respond without retrying."""
+    pass
+
+
 def api_get(path, params=None, _retries=0):
     """
     GET against the Spotify API. Honors Retry-After on 429 (rolling ~30s window).
@@ -111,10 +118,20 @@ def api_get(path, params=None, _retries=0):
     )
 
     if r.status_code == 429:
-        if _retries >= 5:
-            raise SpotifyError("Rate limited by Spotify after 5 retries.")
-        wait = int(r.headers.get("Retry-After", "2")) + 1
-        time.sleep(wait)
+        # Spotify uses 429 for two very different things. A few seconds means a
+        # burst limit worth waiting out. A huge Retry-After (observed: 84735s,
+        # about 23.5 hours) means the daily quota is gone. Sleeping on that
+        # value pins the worker for a day and takes the whole service down, so
+        # anything beyond a short wait fails fast with a message users can read.
+        wait = int(r.headers.get("Retry-After", "2"))
+        if wait > MAX_RETRY_WAIT_SECONDS or _retries >= 3:
+            hours = max(1, round(wait / 3600))
+            raise SpotifyQuotaError(
+                "Cadence has used up the data Spotify allows it to pull today. "
+                f"It resets in about {hours} hour{'s' if hours != 1 else ''}. "
+                "Nothing is broken, please try again then."
+            )
+        time.sleep(wait + 1)
         return api_get(path, params, _retries + 1)
 
     if r.status_code == 401 and _retries == 0:
