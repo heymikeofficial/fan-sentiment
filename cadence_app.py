@@ -36,7 +36,7 @@ app = Flask(__name__)
 # ── DB ───────────────────────────────────────────────────────────────────────
 
 def init_db():
-    with sqlite3.connect(DB_PATH) as c:
+    with sqlite3.connect(DB_PATH, timeout=15) as c:
         c.execute("""CREATE TABLE IF NOT EXISTS runs (
             id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT, ip TEXT,
             artist TEXT, artist_id TEXT, store TEXT)""")
@@ -50,7 +50,7 @@ def cache_key(artist_id, store, compare_store):
 
 
 def get_cached(key):
-    with sqlite3.connect(DB_PATH) as c:
+    with sqlite3.connect(DB_PATH, timeout=15) as c:
         row = c.execute("SELECT html, created_at FROM report_cache WHERE cache_key=?",
                         (key,)).fetchone()
     if not row:
@@ -65,20 +65,20 @@ def get_cached(key):
 
 
 def set_cached(key, body):
-    with sqlite3.connect(DB_PATH) as c:
+    with sqlite3.connect(DB_PATH, timeout=15) as c:
         c.execute("INSERT OR REPLACE INTO report_cache VALUES (?,?,?)",
                   (key, body, datetime.utcnow().isoformat()))
 
 
 def log_run(ip, artist, artist_id, store):
-    with sqlite3.connect(DB_PATH) as c:
+    with sqlite3.connect(DB_PATH, timeout=15) as c:
         c.execute("INSERT INTO runs (ts,ip,artist,artist_id,store) VALUES (?,?,?,?,?)",
                   (datetime.utcnow().isoformat(), ip, artist, artist_id, store or ""))
 
 
 def check_rate_limit(ip):
     today = date.today().isoformat()
-    with sqlite3.connect(DB_PATH) as c:
+    with sqlite3.connect(DB_PATH, timeout=15) as c:
         total = c.execute("SELECT COUNT(*) FROM runs WHERE ts LIKE ?",
                           (today + "%",)).fetchone()[0]
         mine = c.execute("SELECT COUNT(*) FROM runs WHERE ip=? AND ts LIKE ?",
@@ -289,7 +289,7 @@ def analyze():
 
 @app.route("/stats")
 def stats():
-    with sqlite3.connect(DB_PATH) as c:
+    with sqlite3.connect(DB_PATH, timeout=15) as c:
         total = c.execute("SELECT COUNT(*) FROM runs").fetchone()[0]
         today = c.execute("SELECT COUNT(*) FROM runs WHERE ts LIKE ?",
                           (date.today().isoformat() + "%",)).fetchone()[0]
