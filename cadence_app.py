@@ -342,6 +342,11 @@ def shared_report(share_id):
     if not body:
         return Response(_not_found_page(), status=404,
                         content_type="text/html; charset=utf-8")
+    # The copy-link box is for whoever generated the report, not for the public
+    # reading it. Hidden with CSS rather than stripped from the markup so it also
+    # applies to reports saved before this existed.
+    body = body.replace("</head>",
+                        "<style>.cd-share{display:none !important}</style></head>", 1)
     return Response(body, content_type="text/html; charset=utf-8")
 
 
